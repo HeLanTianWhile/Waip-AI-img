@@ -59,32 +59,30 @@ def main():
     # 先遍历每张图片
     for h in resized_img_list:
         # 为当前图片创建一个二级列表
-        img_pixels = {}
+        img_pixels = []
         # 再遍历图片的每个像素
         for k in range(min_height):
             for i in range(min_width):
                 if k < fm or k > min_height-fm-1 or i < fm or i > min_width-fm-1:
                     continue
-                for yu in range(100):
-                    sz = 0
-                    for yh in range(4):
-                        ssz = 0
-                        if ((h[k][i][yh] - h[k][i-fm][yh]) > mk) or ((h[k][i][yh] - h[k][i-fm][yh]) < -mk):
-                            ssz += 1
-                        if ((h[k][i][yh] - h[k][i+fm][yh]) > mk) or ((h[k][i][yh] - h[k][i+fm][yh]) < -mk):
-                            ssz += 1
-                        if ((h[k][i][yh] - h[k-fm][i][yh]) > mk) or ((h[k][i][yh] - h[k-fm][i][yh]) < -mk):
-                            ssz += 1
-                        if ((h[k][i][yh] - h[k+fm][i][yh]) > mk) or ((h[k][i][yh] - h[k+fm][i][yh]) < -mk): 
-                            ssz += 1
-                        if ssz >= 2:
-                            sz += 1
-                    if sz >= 3:
-                        print(f'当前像素 {k, i} 是边缘像素')
-                        img_pixels.append([k, i])
-                    else:
-                        print(f'当前像素 {k, i} 不是边缘像素')
-                    mk -= 1
+                sz = 0
+                for yh in range(4):
+                    ssz = 0
+                    if ((h[k][i][yh] - h[k][i-fm][yh]) > mk) or ((h[k][i][yh] - h[k][i-fm][yh]) < -mk):
+                        ssz += 1
+                    if ((h[k][i][yh] - h[k][i+fm][yh]) > mk) or ((h[k][i][yh] - h[k][i+fm][yh]) < -mk):
+                        ssz += 1
+                    if ((h[k][i][yh] - h[k-fm][i][yh]) > mk) or ((h[k][i][yh] - h[k-fm][i][yh]) < -mk):
+                        ssz += 1
+                    if ((h[k][i][yh] - h[k+fm][i][yh]) > mk) or ((h[k][i][yh] - h[k+fm][i][yh]) < -mk):
+                        ssz += 1
+                    if ssz >= 2:
+                        sz += 1
+                if sz >= 3:
+                    print(f'当前像素 {k, i} 是边缘像素')
+                    img_pixels.append([k, i])
+                else:
+                    print(f'当前像素 {k, i} 不是边缘像素')
         # 将当前图片的结果添加到主列表
         lk.append(img_pixels)
     print('降噪开始')
