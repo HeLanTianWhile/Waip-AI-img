@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw
 import os
 import copy
+import json
 
 
 def main():
@@ -55,7 +56,7 @@ def main():
     print('边缘检测开始')
     lk = []
     fm = 1
-    mk = 100
+    mk = 5
     # 先遍历每张图片
     for h in resized_img_list:
         # 为当前图片创建一个二级列表
@@ -105,12 +106,37 @@ def main():
                 if cs <= ni:
                     oiiaioiia[o].remove(p)
     lk = copy.deepcopy(oiiaioiia)
-    ec = []
-    for iu in lk:
-        ec.append([])
-        for oi in height:
-            pass
     print(lk)
+    
+    # 遍历每个边缘像素，在特定距离范围内建立连接
+    print('建立连接开始')
+    connect_distance = 20
+    connections_list = []
+    for idx, edge_pixels in enumerate(lk):
+        print(f'当前图片 {idx+1} 建立连接开始，边缘像素 {len(edge_pixels)} 个')
+        # 按网格分桶，只与邻近格子内的像素比较，避免两两全量比较
+        grid = {}
+        for p in edge_pixels:
+            grid.setdefault((p[0] // connect_distance, p[1] // connect_distance), []).append(p)
+        connections = set()
+        for p in edge_pixels:
+            pk = p[0] // connect_distance
+            pi = p[1] // connect_distance
+            for dk in (-1, 0, 1):
+                for di in (-1, 0, 1):
+                    for q in grid.get((pk + dk, pi + di), ()):
+                        if q == p:
+                            continue
+                        rk = q[0] - p[0]
+                        ri = q[1] - p[1]
+                        if rk * rk + ri * ri <= connect_distance * connect_distance:
+                            # 统一顺序后存入集合，避免重复连接
+                            if p < q:
+                                connections.add((p[0], p[1], q[0], q[1]))
+                            else:
+                                connections.add((q[0], q[1], p[0], p[1]))
+        connections_list.append(sorted(connections))
+        print(f'当前图片 {idx+1} 建立连接完成，共 {len(connections)} 条连接')
     
     # 保存结果到临时文件夹
     def save_results():
@@ -149,6 +175,21 @@ def main():
             draw_img.save(edge_path)
             
             print(f"已保存图片 {idx+1}: {original_filename} 和 {edge_filename}")
+            
+            # 将描边像素和连接关系保存为 JSON
+            json_filename = f"边缘数据_{idx+1}.json"
+            json_path = os.path.join(temp_folder, json_filename)
+            edge_data = {
+                '图片序号': idx + 1,
+                '图片尺寸': [min_width, min_height],
+                '连接距离': connect_distance,
+                '边缘像素': edge_pixels,
+                '连接': connections_list[idx],
+            }
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(edge_data, f, ensure_ascii=False)
+            
+            print(f"已保存边缘数据: {json_filename}")
             
             # 关闭图片
             img.close()
