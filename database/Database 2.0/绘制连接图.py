@@ -35,7 +35,7 @@ def main():
 
         # 连接数据为 [行1, 列1, 行2, 列2]
         for row1, col1, row2, col2 in data['连接']:
-            draw.line((col1, row1, col2, row2), fill=(255, 0, 0), width=1)
+            draw.line((col1, row1, col2, row2), fill=(0, 0, 0), width=1)
 
         out_path = os.path.join(out_dir, f'连接图_{data["图片序号"]}.png')
         img.save(out_path)

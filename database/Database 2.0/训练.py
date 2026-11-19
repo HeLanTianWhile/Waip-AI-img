@@ -4,6 +4,70 @@ import copy
 import json
 
 
+def detect_closed_shapes(connections):
+    """按连接关系把连接线分组，并判断每组是否构成闭环
+
+    connections: [(行1, 列1, 行2, 列2), ...]
+    返回: [{'编号': 1, '是否封闭': True, '像素数': N, '连接数': M,
+            '包围盒': [最小行, 最小列, 最大行, 最大列], '连接线': [...]}, ...]
+    """
+    # 并查集，把互相连通的像素归为同一组
+    parent = {}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for r1, c1, r2, c2 in connections:
+        a, b = (r1, c1), (r2, c2)
+        parent.setdefault(a, a)
+        parent.setdefault(b, b)
+        union(a, b)
+
+    # 按连通分组合并连接线，线编号对应 connections 列表中的序号（从 1 开始）
+    groups = {}
+    for line_index, (r1, c1, r2, c2) in enumerate(connections, 1):
+        root = find((r1, c1))
+        group = groups.setdefault(root, {'rows': [], 'cols': [], 'lines': []})
+        group['rows'].extend((r1, r2))
+        group['cols'].extend((c1, c2))
+        group['lines'].append({
+            '线编号': line_index,
+            '起点': [r1, c1],
+            '终点': [r2, c2],
+        })
+
+    shapes = []
+    for group in groups.values():
+        node_count = len({tuple(p) for line in group['lines'] for p in (line['起点'], line['终点'])})
+        line_count = len(group['lines'])
+        shapes.append({
+            '编号': 0,
+            # 连通图中 连接数 - 像素数 + 1 > 0 说明至少存在一个闭环
+            '是否封闭': line_count - node_count + 1 >= 1,
+            '像素数': node_count,
+            '连接数': line_count,
+            '包围盒': [
+                min(group['rows']), min(group['cols']),
+                max(group['rows']), max(group['cols']),
+            ],
+            '连接线': group['lines'],
+        })
+
+    # 封闭图形排在前面，再按连接数从多到少排序
+    shapes.sort(key=lambda s: (not s['是否封闭'], -s['连接数']))
+    for new_index, shape in enumerate(shapes, 1):
+        shape['编号'] = new_index
+    return shapes
+
+
 def main():
     # 训练Waip AI
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -138,6 +202,15 @@ def main():
         connections_list.append(sorted(connections))
         print(f'当前图片 {idx+1} 建立连接完成，共 {len(connections)} 条连接')
     
+    # 封闭图形检测：把连接线按连通关系分组，并判断每组是否闭环
+    print('封闭图形检测开始')
+    closed_shapes_list = []
+    for idx, connections in enumerate(connections_list):
+        shapes = detect_closed_shapes(connections)
+        closed_shapes_list.append(shapes)
+        closed_count = sum(1 for s in shapes if s['是否封闭'])
+        print(f'当前图片 {idx+1} 共 {len(shapes)} 组连接，其中封闭图形 {closed_count} 个')
+    
     # 保存结果到临时文件夹
     def save_results():
         # 创建临时文件夹
@@ -185,6 +258,7 @@ def main():
                 '连接距离': connect_distance,
                 '边缘像素': edge_pixels,
                 '连接': connections_list[idx],
+                '封闭图形': closed_shapes_list[idx],
             }
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(edge_data, f, ensure_ascii=False)
